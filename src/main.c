@@ -20,6 +20,7 @@
 #include "gfx_FreeRTOS_utils.h"
 #include "gfx_print.h"
 
+
 #ifdef TRACE_FUNCTIONS
 #include "tracer.h"
 #endif
@@ -28,11 +29,16 @@
 
 #define mainGENERIC_PRIORITY (tskIDLE_PRIORITY)
 #define mainGENERIC_STACK_SIZE ((unsigned short)2560)
+#define PI 3.1415
+double angle = 0;
+
+#define SquareWidth 90
 
 static TaskHandle_t DemoTask = NULL;
 static TaskHandle_t BufferSwap = NULL;
 
 SemaphoreHandle_t DrawSignal = NULL;
+
 
 typedef struct buttons_buffer {
     unsigned char buttons[SDL_NUM_SCANCODES];
@@ -48,6 +54,82 @@ void xGetButtonInput(void)
         xSemaphoreGive(buttons.lock);
     }
 }
+
+//Makes the Circle and Box symbols turn araound the x and y coordinates of mouse
+//by increasing the angle 0.5 every time it is called
+void SymbolsRotating(short int *x_Circle, short int *y_Circle, short int *x_Box,
+                     short int *y_Box, int *mouse_readed_x ,int *mouse_readed_y ){
+        angle += 0.05;
+        *x_Circle= *(mouse_readed_x) + 140 * cos(angle);
+        *y_Circle= *(mouse_readed_y) + 140 * sin(angle);
+        *x_Box = *(mouse_readed_x) -  140 * cos(angle)- SquareWidth/2;
+        *y_Box= *(mouse_readed_y) - 140 * sin(angle) - SquareWidth/2;
+}     
+
+// Counts the number of times A B C D buttons clicked 
+// only if the incoming signal from the keyboard turns from 0 to 1
+void buttons_count(int *A, int* B , int *C , int *D, int *button_A, int *button_B,int *button_C,int *button_D){   
+    if(buttons.buttons[KEYCODE(A)] != *button_A){
+        if(buttons.buttons[KEYCODE(A)]){
+        *A = *A + 1;
+        *button_A =1;
+        } 
+    }
+    if(!buttons.buttons[KEYCODE(A)])
+    *button_A =0;
+if(buttons.buttons[KEYCODE(B)] != *button_B){
+        if(buttons.buttons[KEYCODE(B)]){
+        *B = *B + 1;
+        *button_B =1;
+        }      
+    }
+    if(!buttons.buttons[KEYCODE(B)])
+    *button_B =0;
+if(buttons.buttons[KEYCODE(C)] != *button_C){
+        if(buttons.buttons[KEYCODE(C)]){
+        *C = *C + 1;
+        *button_C =1;
+        }     
+    }
+    if(!buttons.buttons[KEYCODE(C)])
+    *button_C =0;
+    if(buttons.buttons[KEYCODE(D)] != *button_D){
+        if(buttons.buttons[KEYCODE(D)]){
+        *D = *D + 1;
+        *button_D =1;
+        }
+    }
+    if(!buttons.buttons[KEYCODE(D)])
+    *button_D =0;
+    // Resets the counter when there is a left click signal from the mouse
+    if(gfxEventGetMouseLeft()){
+        *A = 0;
+        *B = 0;
+        *C = 0;
+        *D = 0;
+    }
+}
+// 
+void TextMoving(int *xPositionofText, int TextSize, int *control_max_width, int *x_position_mouse){
+   if(*xPositionofText< SCREEN_WIDTH-TextSize-*x_position_mouse && !*control_max_width){  
+    *xPositionofText += 1;
+        if(*xPositionofText== SCREEN_WIDTH-TextSize-*x_position_mouse){
+            *control_max_width = 1;
+        }
+   }
+    
+
+    if(*control_max_width){  
+    *xPositionofText -= 1;
+    if(*xPositionofText + *x_position_mouse<= 0){
+            *control_max_width = 0;
+        }
+   }
+        
+        
+       
+}
+    
 
 void vSwapBuffers(void *pvParameters)
 {
@@ -67,9 +149,36 @@ void vDemoTask(void *pvParameters)
 {
     // structure to store time retrieved from Linux kernel
     static struct timespec the_time;
-    static char our_time_string[100];
-    static int our_time_strings_width = 0;
-
+    static char number_of_loops[100];
+    static int number_of_loops_width = 0;
+    static char moving_string[100];
+    static int moving_string_width = 0;
+    static char output_buttons_A[100];
+    static char output_buttons_B[100];
+    static char output_buttons_C[100];
+    static char output_buttons_D[100];
+    static char mouse_coordinates_x[100];
+    static char mouse_coordinates_y[100];
+    static int mouse_coordinates_width = 0;
+    static int button_not_A = 0;
+   static int button_not_B = 0;
+   static int button_not_C = 0;
+   static int button_not_D = 0;
+    
+    static int moving_string_x_position = 0;
+    static int text_reached_max_width =0;
+    short int  XpositionBox = 100;
+    short int YpositionSymbols = 190;
+    short int xCircle=475;
+    short int yCircle=240;
+    long int loop_number =0;
+    int button_count_A = 0;
+    int button_count_B = 0;
+    int button_count_C = 0;
+    int button_count_D = 0;
+    int mouse_x;
+    int mouse_y;
+    
     // Needed such that Gfx library knows which thread controlls drawing
     // Only one thread can call gfxDrawUpdateScreen while and thread can call
     // the drawing functions to draw objects. This is a limitation of the SDL
@@ -102,26 +211,107 @@ void vDemoTask(void *pvParameters)
                     CLOCK_REALTIME,
                     &the_time); // Get kernel real time
 
-                // Format our string into our char array
-                sprintf(our_time_string,
-                        "There has been %ld seconds since the Epoch. Press Q to quit",
-                        (long int)the_time.tv_sec);
+                //called the function that counts the number of times A B C D buttons clicked with debounce logic
+                buttons_count(&button_count_A, &button_count_B , &button_count_C , &button_count_D,
+                                &button_not_A, &button_not_B,&button_not_C,&button_not_D);
+                
+                
+                //The x and y coordinates of mouse stored in 2 int variables
+                mouse_x=gfxEventGetMouseX();
+                mouse_y=gfxEventGetMouseY();
+
+                
+                
+                
+                //Number of times that the demo task loop been executed turned into Binary 
+                sprintf(number_of_loops,
+                        "Number of loops executed : %ld . Press Q to quit",
+                        (long int)loop_number);
+                
+                sprintf(moving_string, "This text is moving");
+
+                // Number of times that A B C or D buttons clicked tuned into Binary
+                    sprintf(output_buttons_A,
+                        "A: %d", 
+                        button_count_A);
+                    sprintf(output_buttons_B,
+                        "B: %d", 
+                        button_count_B);
+                    sprintf(output_buttons_C,
+                        "C: %d", 
+                        button_count_C);
+                    sprintf(output_buttons_D,
+                        "D: %d", 
+                       button_count_D);
+                
+                // x and y coordinates of mouse turned into binary 
+                sprintf(mouse_coordinates_x,"X: %d", mouse_x);
+                sprintf(mouse_coordinates_y,"Y: %d", mouse_y);
+                       
 
                 // Get the width of the string on the screen so we can center it
                 // Returns 0 if width was successfully obtained
-                if (!gfxGetTextSize((char *)our_time_string,
-                                    &our_time_strings_width,
-                                    NULL))
+                // 
+                if(!gfxGetTextSize((char *)number_of_loops,
+                                    &number_of_loops_width,
+                                    NULL)){
                     gfxDrawText(
-                        our_time_string,
-                        SCREEN_WIDTH / 2 -
-                        our_time_strings_width /
-                        2,
-                        SCREEN_HEIGHT / 2 -
+                        number_of_loops,
+                        mouse_x - (number_of_loops_width/2),
+                        mouse_y+(SCREEN_HEIGHT/2) - 50 -
                         DEFAULT_FONT_SIZE / 2,
-                        TUMBlue);
+                        TUMBlue);          }
+                    //Drawing number of times A B C and D buttons are clicked depending on x and y coordinates of mouse    
+                    gfxDrawText(output_buttons_A, mouse_x-(SCREEN_WIDTH/2)+20,mouse_y- 30, TUMBlue);
+                    gfxDrawText(output_buttons_B,mouse_x-(SCREEN_WIDTH/2)+20, mouse_y -15,TUMBlue);
+                    gfxDrawText(output_buttons_C,mouse_x-(SCREEN_WIDTH/2)+20,mouse_y,TUMBlue);
+                    gfxDrawText(output_buttons_D, mouse_x-(SCREEN_WIDTH/2)+20,mouse_y+15,TUMBlue);
+ 
+                    //Drawing moving String depending on x and y coordinates of mouse 
+                    if(!gfxGetTextSize((char *)moving_string,
+                                    &moving_string_width,
+                                    NULL)){
+                    gfxDrawText(
+                        moving_string,
+                        moving_string_x_position + mouse_x,
+                        mouse_y-(SCREEN_HEIGHT/2)+ 10,
+                        Black);
+                                        }   
 
+                    if(!gfxGetTextSize((char *)mouse_coordinates_x,
+                                    &mouse_coordinates_width,
+                                    NULL)){
+                         gfxDrawText(
+                            mouse_coordinates_x,
+                            mouse_x+(SCREEN_WIDTH/2)-mouse_coordinates_width,
+                            mouse_y-40,
+                            TUMBlue);
+
+                            gfxDrawText(
+                            mouse_coordinates_y,
+                            mouse_x+(SCREEN_WIDTH/2)-mouse_coordinates_width,
+                            mouse_y+20,
+                            TUMBlue);
+                    }
+                // Calling the function that makes Circle and Box rotate 
+                SymbolsRotating(&xCircle, &yCircle,&XpositionBox, &YpositionSymbols, &mouse_x , &mouse_y);
+                //Calling the function that changes x coordinate of the upper text 
+                TextMoving(&moving_string_x_position, moving_string_width, &text_reached_max_width , &mouse_x);
+
+                //implementing the 3 edges of the triangle depending on x and y coordinates of the mouse and Drawing it
+                coord_t TriangleCoordinates[3] = {{(mouse_x), (mouse_y-50)}, {mouse_x-50, mouse_y+50},{ mouse_x+50, mouse_y+50}} ;
+                gfxDrawTriangle(TriangleCoordinates, Black);
+                //Drawing the box
+                gfxDrawBox(XpositionBox,YpositionSymbols, SquareWidth, SquareWidth ,Black);
+                //Drawing the circle
+                gfxDrawCircle(xCircle, yCircle, 50, Blue);
+                // counts the number of loops executed at the end of every loop
+                loop_number++;
+
+
+                 
                 gfxDrawUpdateScreen(); // Refresh the screen to draw string
+               
             }
     }
 }
