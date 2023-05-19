@@ -29,7 +29,7 @@
 
 #define mainGENERIC_PRIORITY (tskIDLE_PRIORITY)
 #define mainGENERIC_STACK_SIZE ((unsigned short)2560)
-#define PI 3.1415
+
 double angle = 0;
 
 #define SquareWidth 90
@@ -68,10 +68,12 @@ void SymbolsRotating(short int *x_Circle, short int *y_Circle, short int *x_Box,
 
 // Counts the number of times A B C D buttons clicked 
 // only if the incoming signal from the keyboard turns from 0 to 1
-void buttons_count(int *A, int* B , int *C , int *D, int *button_A, int *button_B,int *button_C,int *button_D){   
+void buttons_count(int *A_counter, int* B_counter , int *C_counter,
+                   int *D_counter, int *button_A, int *button_B,int *button_C,int *button_D){   
+    
     if(buttons.buttons[KEYCODE(A)] != *button_A){
         if(buttons.buttons[KEYCODE(A)]){
-        *A = *A + 1;
+        *A_counter = *A_counter + 1;
         *button_A =1;
         } 
     }
@@ -79,7 +81,7 @@ void buttons_count(int *A, int* B , int *C , int *D, int *button_A, int *button_
     *button_A =0;
 if(buttons.buttons[KEYCODE(B)] != *button_B){
         if(buttons.buttons[KEYCODE(B)]){
-        *B = *B + 1;
+        *B_counter = *B_counter + 1;
         *button_B =1;
         }      
     }
@@ -87,7 +89,7 @@ if(buttons.buttons[KEYCODE(B)] != *button_B){
     *button_B =0;
 if(buttons.buttons[KEYCODE(C)] != *button_C){
         if(buttons.buttons[KEYCODE(C)]){
-        *C = *C + 1;
+        *C_counter = *C_counter + 1;
         *button_C =1;
         }     
     }
@@ -95,7 +97,7 @@ if(buttons.buttons[KEYCODE(C)] != *button_C){
     *button_C =0;
     if(buttons.buttons[KEYCODE(D)] != *button_D){
         if(buttons.buttons[KEYCODE(D)]){
-        *D = *D + 1;
+        *D_counter = *D_counter + 1;
         *button_D =1;
         }
     }
@@ -103,21 +105,23 @@ if(buttons.buttons[KEYCODE(C)] != *button_C){
     *button_D =0;
     // Resets the counter when there is a left click signal from the mouse
     if(gfxEventGetMouseLeft()){
-        *A = 0;
-        *B = 0;
-        *C = 0;
-        *D = 0;
+        *A_counter = 0;
+        *B_counter = 0;
+        *C_counter = 0;
+        *D_counter = 0;
     }
 }
-// 
+//Adds or subtracts 1 pixel from the x Position of the moving text depending on the last collision surface
 void TextMoving(int *xPositionofText, int TextSize, int *control_max_width, int *x_position_mouse){
    if(*xPositionofText< SCREEN_WIDTH-TextSize-*x_position_mouse && !*control_max_width){  
     *xPositionofText += 1;
-        if(*xPositionofText== SCREEN_WIDTH-TextSize-*x_position_mouse){
+        
+   }
+   if(*xPositionofText>= SCREEN_WIDTH-TextSize-*x_position_mouse){
             *control_max_width = 1;
         }
-   }
-    
+    //control max width is 1 when the collision with the right side of the screen happened 
+    // and back to 0 if the text touches the left side
 
     if(*control_max_width){  
     *xPositionofText -= 1;
@@ -167,10 +171,10 @@ void vDemoTask(void *pvParameters)
     
     static int moving_string_x_position = 0;
     static int text_reached_max_width =0;
-    short int  XpositionBox = 100;
-    short int YpositionSymbols = 190;
-    short int xCircle=475;
-    short int yCircle=240;
+    short int  XpositionBox;
+    short int YpositionSymbols;
+    short int xCircle;
+    short int yCircle;
     long int loop_number =0;
     int button_count_A = 0;
     int button_count_B = 0;
@@ -227,10 +231,10 @@ void vDemoTask(void *pvParameters)
                 sprintf(number_of_loops,
                         "Number of loops executed : %ld . Press Q to quit",
                         (long int)loop_number);
-                
+                // moving text string turned into binary
                 sprintf(moving_string, "This text is moving");
 
-                // Number of times that A B C or D buttons clicked tuned into Binary
+                // Number of times that A B C or D buttons clicked turned into Binary
                     sprintf(output_buttons_A,
                         "A: %d", 
                         button_count_A);
@@ -305,7 +309,7 @@ void vDemoTask(void *pvParameters)
                 gfxDrawBox(XpositionBox,YpositionSymbols, SquareWidth, SquareWidth ,Black);
                 //Drawing the circle
                 gfxDrawCircle(xCircle, yCircle, 50, Blue);
-                // counts the number of loops executed at the end of every loop
+                // counts the number of loops executed up at the end of every loop
                 loop_number++;
 
 
