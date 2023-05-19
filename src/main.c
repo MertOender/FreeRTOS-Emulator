@@ -1,3 +1,15 @@
+ /**
+ * @file main.c
+ * @author Mert Onder
+ * @date 19 May 2023
+ * @brief Includes functions that makes a square 
+ * and circle object rotate, makes a text move from one 
+ * side of the screen to another, counts the number of 
+ * times A B C D buttons clicked and resets the number 
+ * with left click. Created for Embbeded Systems Programming 
+ * Laboratory lessons 2. Exercise
+ */
+
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -117,11 +129,12 @@ void TextMoving(int *xPositionofText, int TextSize, int *control_max_width, int 
     *xPositionofText += 1;
         
    }
+    //control max width is 1 when the collision with the right side of the screen happened 
+    // and back to 0 if the text touches the left side
    if(*xPositionofText>= SCREEN_WIDTH-TextSize-*x_position_mouse){
             *control_max_width = 1;
         }
-    //control max width is 1 when the collision with the right side of the screen happened 
-    // and back to 0 if the text touches the left side
+   
 
     if(*control_max_width){  
     *xPositionofText -= 1;
